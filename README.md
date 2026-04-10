@@ -66,7 +66,7 @@ geoai-sql-postgis-toolkit/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/NjokiM/geoai-sql-postgreql-toolkit.git
+git clone https://github.com/NjokiM/geoai-sql-postgresql-toolkit.git
 cd geoai-sql-postgis-toolkit
 ```
 
