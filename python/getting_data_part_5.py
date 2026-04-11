@@ -1,60 +1,76 @@
+import os
+from dotenv import load_dotenv
 import kagglehub
 import pandas as pd
-import os
 from sqlalchemy import create_engine
 
-print("downloading data from kaggle")
-path = kagglehub.dataset_download("muhammadbilal77511/pakistan-carbon-monoxide-2022-2025")
-# path = kagglehub.dataset_download("abdulahadiltaf/sentinel-2-multispectral-crop-and-land-cover-dataset")
-# path = kagglehub.dataset_download("maham9/pakistan-weather-dataset")
-print("finished downloading data from kaggle")
+load_dotenv()
 
 
-# Combine the processed CSVs into a DataFrame
-processed_dir = os.path.join(path, "co_data", "processed")
+def get_data(kaggle_dataset_slug):
+    print("Starting Kaggle download...")
+    print(f"Kaggle dataset is: {kaggle_dataset_slug}")
 
-all_files = [os.path.join(processed_dir, f) for f in os.listdir(processed_dir) if f.endswith('.csv')]
-# all_data = pd.concat([pd.read_csv(f) for f in all_files], ignore_index=True)
+    path = kagglehub.dataset_download(kaggle_dataset_slug)
+    print(f"Dataset downloaded to cache directory: {path}")
 
-# Creating a connection to the local PostgreSQL
-# credentials
-db_user = 'postgres'
-db_password = 'cake2026'
-db_host = '127.0.0.1'
-db_port = '5432'
-db_name = 'postgres'
+    # 👇 Target the nested folder
+    processed_dir = os.path.join(path, "co_data", "processed")
 
-# Construct the engine string
-print("connecting to postgresql")
-connection_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-engine = create_engine(connection_url)
-print(f"successfully connected. \nWriting data into db")
+    if not os.path.exists(processed_dir):
+        raise FileNotFoundError(f"Processed directory not found: {processed_dir}")
 
-#Push to Postgres
-# Loop through each CSV and create a specific table for that year
-for file in all_files:
-    print(os.path.basename(file))
+    csv_files = [
+        os.path.join(processed_dir, f)
+        for f in os.listdir(processed_dir)
+        if f.lower().endswith(".csv")
+    ]
 
-for file_name in all_files:
-    years_wanted = ['year_2024.csv','year_2025.csv']
-    if os.path.basename(file_name) in years_wanted:
+    if not csv_files:
+        raise FileNotFoundError(f"No CSV files in {processed_dir}")
 
-        table_name = "pakistan_co_" + os.path.basename(file_name).replace('.csv', '').replace(' ', '_').lower()
-    
-        print(f"Reading {os.path.basename(file_name)}...")
-        file_path = os.path.join(path, file_name)
-        
-        # Read the individual year
-        df_year = pd.read_csv(file_path)
-        
-        print(f"Writing {table_name} to database...")
-        # Push to Postgres as a unique table
-        df_year.to_sql(table_name, engine, if_exists='replace', index=False)
-"""
-Previous tables creates:
-- pakistan_weather_dataset
-- multispectral_crop_and_lc_dataset
-"""
+    print(f"Found {len(csv_files)} CSV file(s) in processed folder")
+    return csv_files
 
 
-print("Part 1 is done... keep checking in for the other parts and happy Mastering SQL for Geospatial Data")
+def connect_postgres():
+    db_user = os.getenv("DB_USER", "postgres")
+    db_password = os.getenv("DB_PASSWORD")
+    db_host = os.getenv("DB_HOST", "127.0.0.1")
+    db_port = os.getenv("DB_PORT", "5432")
+    db_name = os.getenv("DB_NAME", "postgres")
+
+    connection_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    print("Connecting to PostgreSQL...")
+    return create_engine(connection_url)
+
+
+def push_multiple_to_postgres(csv_files, engine, table_prefix="dataset"):
+    for file_path in csv_files:
+        file_name = os.path.basename(file_path)
+
+        table_name = (
+            f"{table_prefix}_{os.path.splitext(file_name)[0]}"
+            .replace(" ", "_")
+            .replace("-", "_")
+            .lower()
+        )
+
+        print(f"Reading: {file_name}")
+        df = pd.read_csv(file_path)
+        print(f"Loaded dataset with shape: {df.shape}")
+
+        print(f"Pushing data to table: {table_name}")
+        df.to_sql(table_name, engine, if_exists="replace", index=False)
+        print("Upload complete.\n")
+
+
+if __name__ == "__main__":
+    kaggle_dataset_slug = "muhammadbilal77511/pakistan-carbon-monoxide-2022-2025"
+    table_prefix = "pakistan_co"
+
+    csv_files = get_data(kaggle_dataset_slug)
+    engine = connect_postgres()
+    push_multiple_to_postgres(csv_files, engine, table_prefix)
+
+    print(f"Part 5 is done just starting...\n We got the data, now let's shift focus to the tables ")
