@@ -48,15 +48,15 @@ Updates will be included to match datasets/projects encountered
 ## Project Structure
 
 ```
+
 geoai-sql-postgis-toolkit/
 │
 ├── sql/                 # Spatial SQL scripts (PostgreSQL)
 ├── python/              # Data pipelines and modeling
-├── notebooks/           # Exploration and experiments
-├── data/                # Raw and processed datasets
-├── docs/                # Architecture and guides
-├── examples/            # End-to-end use cases
-└── tests/               # Validation and testing
+│   ├── getting_data_part_1.py
+│   ├── getting_data_part_5.py
+│   ├── requirements.txt
+├── README.md 
 ```
 
 ---
@@ -67,20 +67,31 @@ geoai-sql-postgis-toolkit/
 
 ```bash
 git clone https://github.com/NjokiM/geoai-sql-postgresql-toolkit.git
-cd geoai-sql-postgis-toolkit
+cd geoai-sql-postgis-toolkit/python
 ```
 
-### 2. Install dependencies
+### 2. Setup Virtual Environment
+#### linux/macos
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+####windows
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Setup PostgreSQL + PostGIS
+### 4. Setup PostgreSQL
 
-* Install PostgreSQL
-* Enable PostGIS extension(to follow in the series. For now installing PostgreSQL is enough)
-* Load sample spatial datasets
+* Install PostgreSQL(to follow in the series. For now installing PostgreSQL is enough)
+* Enable PostGIS extension--- for a later article
 
 ---
 
@@ -119,6 +130,7 @@ This modular pipeline supports scalability and integration into production syste
 ##  Author
 
 **Njoki Mwihaki**
+
 GeoAI Engineer |  Data Specialist
 
 Focused on building scalable geospatial systems and applying machine learning to real-world challenges.
