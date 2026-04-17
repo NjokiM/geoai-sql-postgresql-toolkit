@@ -5,7 +5,6 @@ import pandas as pd
 import geopandas as gpd
 from shapely import wkt
 from sqlalchemy import create_engine
-from geoalchemy2 import Geometry
 
 load_dotenv()
 
