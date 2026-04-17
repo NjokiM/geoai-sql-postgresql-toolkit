@@ -2,7 +2,10 @@ import os
 from dotenv import load_dotenv
 import kagglehub
 import pandas as pd
+import geopandas as gpd
+from shapely import wkt
 from sqlalchemy import create_engine
+from geoalchemy2 import Geometry
 
 load_dotenv()
 
@@ -14,7 +17,6 @@ def get_data(kaggle_dataset_slug):
     path = kagglehub.dataset_download(kaggle_dataset_slug)
     print(f"Dataset downloaded to cache directory: {path}")
 
-    # 👇 Target the nested folder
     processed_dir = os.path.join(path)
 
     if not os.path.exists(processed_dir):
@@ -40,14 +42,33 @@ def connect_postgres():
     db_port = os.getenv("DB_PORT", "5432")
     db_name = os.getenv("DB_NAME", "postgres")
 
+    if not db_password:
+        raise ValueError("DB_PASSWORD is missing in your environment variables.")
+
     connection_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     print("Connecting to PostgreSQL...")
     return create_engine(connection_url)
 
 
+def convert_geometry_feature(df):
+    df = df.copy()
+
+    if "geometry" not in df.columns:
+        return df
+
+    df["geometry"] = df["geometry"].apply(
+        lambda x: wkt.loads(x) if pd.notna(x) else None
+    )
+
+    gdf = gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
+    return gdf
+
+
 def push_multiple_to_postgres(csv_files, engine, table_prefix="dataset"):
     for file_path in csv_files:
         file_name = os.path.basename(file_path)
+        print(f"File path: {file_path}")
+        print(f"File name: {file_name}")
 
         table_name = (
             f"{table_prefix}_{os.path.splitext(file_name)[0]}"
@@ -58,11 +79,31 @@ def push_multiple_to_postgres(csv_files, engine, table_prefix="dataset"):
 
         print(f"Reading: {file_name}")
         df = pd.read_csv(file_path)
+        print(f"{file_name} shape is {df.shape}")
+
+        df = convert_geometry_feature(df)
         print(f"Loaded dataset with shape: {df.shape}")
 
         print(f"Pushing data to table: {table_name}")
-        df.to_sql(table_name, engine, if_exists="replace", index=False)
-        print("Upload complete.\n")
+
+        if isinstance(df, gpd.GeoDataFrame):
+            print("Detected GeoDataFrame → using PostGIS")
+            df.to_postgis(
+                name=table_name,
+                con=engine,
+                if_exists="replace",
+                index=False
+            )
+        else:
+            print("Standard DataFrame → using to_sql")
+            df.to_sql(
+                name=table_name,
+                con=engine,
+                if_exists="replace",
+                index=False
+            )
+
+            print("Upload complete.\n")
 
 
 if __name__ == "__main__":
@@ -73,4 +114,4 @@ if __name__ == "__main__":
     engine = connect_postgres()
     push_multiple_to_postgres(csv_files, engine, table_prefix)
 
-    print(f"Part 5 is done just starting...\n We got the data, now let's shift focus to the tables ")
+    print("Part 6 is done. We got the data, now let's shift focus to the tables and the JOIN operations.")
